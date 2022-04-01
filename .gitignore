@@ -1,0 +1,6 @@
+vhls_spice/build
+vhls_spice/*.log
+vhls_spice/.ipcache
+vhls_spice/*.json
+.DS_Store
+*.monopic
