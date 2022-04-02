@@ -38,6 +38,12 @@ To make xclbin that can be run on FPGA, specify the TARGET as hw:
 make all TARGET=hw -j8
 ```
 
+# Time domain simulation algorithm
+The time domain simulation is based on Modified Nodal Analysis (MNA) [^MNA]. MNA itself doesn't support simulate reactive components such as inductors and capcaitors in time domain at the begining. To solve the problem, the reactive componets are modeled as a resistor and a current source connected in parallel. The resistor in the model is constant during the time domain simulation while the current source changes depending on the circuit status from the previous time step. In general, MNA is solving the linear equation:  
+$$
+Azs
+$$
+
 # Hardware kernels  
 
 ## Data type definitions
@@ -96,3 +102,4 @@ The systlic_array kernel contains NM (Number of Matrixes) of matrix multiplicati
 The final circuit status is sum up of all valid results from the systolic_array (enabled by superposition). The swithes and diodes have two different status so it is required to pick between two different 
 
 [^Structure on interface]: <https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Structs-on-the-Interface>
+[^MNA]: <https://lpsa.swarthmore.edu/Systems/Electrical/mna/MNA1.html>
