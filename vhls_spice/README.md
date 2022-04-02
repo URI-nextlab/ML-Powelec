@@ -39,6 +39,7 @@ make all TARGET=hw -j8
 ```
 
 # Time domain simulation algorithm
+
 The time domain simulation is based on Modified Nodal Analysis (MNA) [^MNA]. MNA itself doesn't support simulate reactive components such as inductors and capcaitors in time domain at the begining. To solve the problem, the reactive componets are modeled as a resistor and a current source connected in parallel. The resistor in the model is constant during the time domain simulation while the current source changes depending on the circuit status from the previous time step. In general, MNA is solving the linear equation:  
 $$
 Ax=z
@@ -47,23 +48,23 @@ $$
 or:
 $$
 \left[
-\begin{array}{c|c} 
+\begin{array}{c|c}
 G & A\\
 \hline
 B & C
 \end{array}
 \right]
 \left[
-\begin{array}{c} 
+\begin{array}{c}
 V \\
 \hline
-I 
+I
 \end{array}
 \right]=\left[
-\begin{array}{c} 
+\begin{array}{c}
 j \\
 \hline
-v 
+v
 \end{array}
 \right]
 $$
@@ -87,7 +88,25 @@ To get the current follows into the diode and the volatge accross the diode, we 
 
 All matrixes and $J$ are generated via a python script from the providing netlist.  
 
-# Hardware kernels  
+# System Diagram and Control
+
+The system diagram is:
+<img src="../contents/System_Diagram.png">
+The "HOST" is PC. On FPGA domain, it has 11 interconnected modules. Six of them (red blocks) are connected to the HOST via M_AXI4 bus and these moduels requires the software to activate. The other modules are free-running kernels. The function of the kernels are shown below:  
+
+## Controller (controller.cpp)
+>
+> Generate input of the Systolic Array. In the first iteration, it reads initial status of the circuit $x_0$ from the host and combine it with the source vector. In the following iterations, it receives the new status and send it back to Systolic Array.
+
+## Systolic_Array (systolic_array.cpp)
+>
+> Systolic arrays to calculate matrix times vector. The matrix is reloadable. The module receive source vector and circuit status vector in serial and give out the results togerther in serial.
+
+## Tree_adder (adder_tree.cpp)
+>
+> Sum up the results according to the switch control 
+
+# Important Hardware kernels  
 
 ## Data type definitions
 
@@ -107,6 +126,7 @@ typedef struct __attribute__((packed)){
 The *\_\_attribute\_\_((packed))* is to avoid wasting data width because C may automatically align to 32 bits or 4 bytes[^SoI].
 
 ## systolic_array
+
 The systlic_array kernel contains NM (Number of Matrixes) of matrix multiplication processing units using systolic structure. PE0 calculates $A^{-1}z_0$; PE1 calculates $A^{-1}Hx^{n-1}$; the other PEs are in pair of two, each pair is responsible for one switch.
 
 ```
@@ -142,7 +162,9 @@ The systlic_array kernel contains NM (Number of Matrixes) of matrix multiplicati
 ```
 
 ## adder_tree
-The final circuit status is sum up of all valid results from the systolic_array (enabled by superposition). The swithes and diodes have two different status so it is required to pick between the pair of the results from systolic_array.
+
+The final circuit status is sum up of all valid results from the systolic_array (enabled by superposition). The swithes and diodes have two different status so it is required to pick between the pair of the results from systolic_array. The sum of all selected vectors produce the new circuit status vector $x$.
+
 ```shell
 
   │     │         │     │           │     │          
