@@ -104,7 +104,39 @@ The "HOST" is PC. On FPGA domain, it has 11 interconnected modules. Six of them 
 
 ## Tree_adder (adder_tree.cpp)
 >
-> Sum up the results according to the switch control 
+> Sum up the results according to the switch control signal and diode status. It generates the new vector $x$.
+
+## Stream_Divider (Stream_Divider.cpp)
+>
+> This module simply copy the data of input channel to three output channel. The main purpose is to reduce the loop lantency.
+
+## Diode_updator (diode_updator.cpp)
+>
+> This module updates the diode status once a new $x$ is received. The diode status is streamed out to the Tree_Adder.
+
+## Observer (observer.cpp)
+>
+> This module is to observe the result of all $x$. It is capable of measuring one mean value and one variance. With the observation, the entire waveform is not necessary, which can reduce the time costed to migrate data from FPGA to host.
+
+## Switch_Generator (switch_controller.cpp)
+>
+> This module read switch control signal from the host and stream it to the Tree_Adder. The switch control period can be set so that only the switch signal in one control period is required to be generate through software.  
+
+## Source_Generator (src_generator.cpp)
+>
+> This module read source vectors from the software and stream it to the controller. The source period can also be set. Period = 1 makes the system a DC input.
+
+## Result_DMA (result_back.cpp)
+>
+> This module is a simple DMA module. It is seperated from the control module to reduce the logic inside the iteration loop.
+
+## Reload_DMA (reload.cpp)
+>
+> This module read the matrixes and vectors from host DDR and send them via axi stream bus.
+
+## Reload_DataPackager (reload_converter.cpp)
+>
+> Add user and last signal to the reload stream, and send them to systolic_array and diode_updator.
 
 # Important Hardware kernels  
 
@@ -185,6 +217,12 @@ The final circuit status is sum up of all valid results from the systolic_array 
                  │                                   
                  ▼                                   
 ```
+
+# Simulaion waveform
+
+The wavefrom of the control module is shown below:  
+<img src='../contents/Waveform.png'>  
+The clock frequency in the simulation is 300MHz, the matrix dimention $M$ is 40. All the kernels included in the loop have II=1. Therefore, it takes 40 clocks to do the computation. The latency of the circuit is 14. Hence, it takes $M+14$ clocks to do one iteration. Therefore, the average II is $(M+14)/M$. The circuit is more efficient with larger $M$.
 
 [^SoI]: <https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Structs-on-the-Interface>  
 

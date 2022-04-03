@@ -1,8 +1,8 @@
 # ML-Powelec
 
-This is project aims at accelerate the circuit simulation process when using machine learining to train the power converter designer. The algorithm is based on AutoCkt [^AutoCkt][^AutoCktPaper]. An FPGA accelerator is implemneted via xilinx vitis to accelerate the circuit simulation. Half-bridge LLC converter is used as the example. This project contains:
+This is project aims at accelerate the circuit simulation process when using machine learining to train the power converter designer. The algorithm is based on AutoCkt [^AutoCkt][^AutoCktPaper]. An FPGA accelerator is implemneted via xilinx vitis to accelerate the circuit simulation. Half-bridge LLC converter is used as the example. Compare with using PowerSim as the simulator, it is 60x fatser. This project contains:
 >
->- A pythong script that transfer spice like netlist into accelerator required matrixes and vectors.
+>- A python script that transfer spice like netlist into accelerator required matrixes and vectors.
 >- A Xilinx Vitis project to create the hardware accelerator.
 >- The training and forwarding script that used to train the circuit designer. A customed GYM environment that use FPGA accelerator to do the simulation.
 
