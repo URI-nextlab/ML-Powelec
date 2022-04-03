@@ -1,98 +1,32 @@
-# vhls_spice
+# ML-Powelec
 
-# Introduction
-
-This is a vitis project that creates bit_container.xclbin for hardware acceleration of power electronics time domain simulation. It contains following folders:
-> host_src  
+This is project aims at accelerate the circuit simulation process when using machine learining to train the power converter designer. The algorithm is based on AutoCkt [^AutoCkt][^AutoCktPaper]. An FPGA accelerator is implemneted via xilinx vitis to accelerate the circuit simulation. Half-bridge LLC converter is used as the example. Compare with using PowerSim as the simulator, it is 60x fatser. This project contains:
 >
-> * Host sources to run Hardware emulation. Software emulation is not supported because free running kernels are used.
+>- A python script that transfer spice like netlist into accelerator required matrixes and vectors.
+>- A Xilinx Vitis project to create the hardware accelerator.
+>- The training and forwarding script that used to train the circuit designer. A customed GYM environment that use FPGA accelerator to do the simulation.
+
+# RUN
+
+To run the project, an AWS F1 instance is required. The following python packages (and there dependencies) are required:
 >
-> kernel_src
->
-> * Kernel sources contains c++ kernels and the linker file to connect the kernels.
+>- ray
+>- ray[rllib]
+>- pynq  
 
-To create the bit_container.xclbin, correct pathes should be set in the Makefile. Here is the example.
+These three packages may not be installed correctly with conda. If so, please use `python3 -m pip install <package name>`  
 
-```makefile
-# tool chain path
-XILINX_VITIS ?= /tools/Xilinx/Vitis/2021.2
-XILINX_XRT ?= /opt/xilinx/xrt
-XILINX_VIVADO ?= /tools/Xilinx/Vivado/2021.2
-XILINX_HLS_INCLUDES ?= /tools/Xilinx/Vitis_HLS/2021.2/include
-
-# Platform path
-VITIS_PLATFORM = xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_DIR = /home/Nextlab_Share/aws-fpga/Vitis/aws_platform/xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_PATH = $(VITIS_PLATFORM_DIR)/xilinx_aws-vu9p-f1_shell-v04261818_201920_2.xpfm
-```
-
-The default target is hardware emulation. To run, just type:
-
-```shell  
-make all -j8
-```
-
-To make xclbin that can be run on FPGA, specify the TARGET as hw:  
-
+To run the training, run following teriminal commands.
 ```shell
-make all TARGET=hw -j8
+git clone https://github.com/aws/aws-fpga.git
+cd aws-fpga
+source vitis_setup.sh
+cd ..
+git clone https://github.com/URI-nextlab/ML-Powelec.git
+cd ML-Powelec/fpga_train
+ipython
+run train.py
 ```
 
-# Hardware kernels  
-
-## Data type definitions
-
-All global data type definitions are wrote in *typedef.hpp*. The hardware connot process floating point data efficiently, therefore, all data are transfered to a fixed point number when read from the host, and transfered back to corresponding software data type when they are writen back.  
-The data transferred between free running kernels must use AXI stream interface. Xilinx officially supports AXI stream interface with side channels (*tlast*, *tuser*, ...). However, it some times gives some errors when using the AXI stream with side channels. Therefore, the side channels and data are packed in a structure, such as:  
-
-``` c
-typedef ap_fixed<W,IW> d_htype;
-typedef ap_uint<1> logic;
-typedef struct __attribute__((packed)){
-    d_htype data;
-    logic last;
-    logic user;
-}dp_htype;
-```  
-
-The *\_\_attribute\_\_((packed))* is to avoid wasting data width because C may automatically align to 32 bits or 4 bytes[^Structure on interface].
-
-## systolic_array
-The systlic_array kernel contains NM (Number of Matrixes) of matrix multiplication processing units using systolic structure. The first PE is used to calculate the response of directly applied sources while the other PEs are used to calculate the reponse of reactive components such as L, C, and switches. The results are packed into an array and transfered to the adder_tree kernel to sum them up accordingly.  
-
-```
-               ┌───────────────────────────────────────────────┐                
-               │                                               │                
-               │                                               │                
-               │                ┌───────────────┐              │                
-               │                │               │              │                
-               │       ┌────────▶      PE3      ├─────────┐    │                
-               │       │        │               │         │    │                
-               │       │        └───────────────┘         │    │                
-               │       │                                  │    │                
-               │       │        ┌───────────────┐         │    │                
-               │       │        │               │         │    │                
-               │       ├────────▶      PE2      ├────────┐│    │                
-               │       │        │               │        ││    │                
-               │       │        └───────────────┘        ││    │                
-               │       │                                 ││    │                
-               │       │        ┌───────────────┐        ││    │                
-               │       │        │               │        ││    ├────────────────
-               │       ├────────▶      PE1      ├───────┐│└────┼─────▶          
-               │       │        │               │       │└─────┼─────▶          
-               │       │        └───────────────┘       └──────┼─────▶          
-               │       │                                  ┌────┼─────▶          
-  last_status  │       │        ┌───────────────┐         │    ├────────────────
-  ─────────────┼───────┘        │               │         │    │                
-  source       │                │      PE0      ├─────────┘    │                
-  ─────────────┼────────────────▶               │              │                
-               │                └───────────────┘              │                
-               │                                               │                
-               │                systolic_array                 │                
-               └───────────────────────────────────────────────┘                
-```
-
-## adder_tree
-The final circuit status is sum up of all valid results from the systolic_array (enabled by superposition). The swithes and diodes have two different status so it is required to pick between two different 
-
-[^Structure on interface]: <https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Structs-on-the-Interface>
+[^AutoCkt]: <https://github.com/ksettaluri6/AutoCkt.git>
+[^AutoCktPaper]: Settaluri, K., Haj-Ali, A., Huang, Q., Hakhamaneshi, K., & Nikolic, B. (2020). AutoCkt: Deep Reinforcement Learning of Analog Circuit Designs. Proceedings of the 2020 Design, Automation and Test in Europe Conference and Exhibition, DATE 2020, 490–495. <https://doi.org/10.23919/DATE48585.2020.9116200>

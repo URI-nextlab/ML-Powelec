@@ -43,9 +43,11 @@ using std::vector;
 #define K M
 const int Diodes = (NM - 2) / 4;
 //const int Diodes = 0;
+// test if the matrix loaded correctly
 void mmult(d_in_type A[],d_in_type x[]){
 	printf("Software test!\n");
 	printf("Software calculated static:\n\t");
+	// static response equals iA * src
 	for (int i = 0; i < M;i++){
 		float sum = 0;
 		for (int j = 0; j < M;j++){
@@ -56,7 +58,6 @@ void mmult(d_in_type A[],d_in_type x[]){
 		else
 			printf(".");
 	}
-
 	printf("\n\n");
 }
 
@@ -70,12 +71,12 @@ int main(int argc, char** argv) {
     std::string binaryFile = argv[1];
     bool do_reload = true;
 
-	const int IT = 2000;
-    const int swPeriod = 100;
-    const int srcPeriod = 1;
+	const int IT = 2000; // iteration time
+    const int swPeriod = 100; // switch period
+    const int srcPeriod = 1; // source period (Period = 1 -> DC source)
 
-    int rms_id = 20;
-    int mean_id = 7;
+    int rms_id = 20; // rms observation ID
+    int mean_id = 7; // mean observation ID
 
 	printf("Emulation starts!\n");
     printf("\tTotal time steps:\t%d\n", IT);
@@ -99,7 +100,7 @@ int main(int argc, char** argv) {
 
     printf("Finish allocating vectors!\n");
 	printf("Start loading matrixes and vectors...\n");
-    fp = fopen("/home/alfred/Projects/vitis/spice_to_server/host_src/to_aws.txt","r");
+    fp = fopen("./host_src/to_aws.txt","r");
     if (fp == NULL){
         printf("Faild to load txt file!\n");
         printf("Break simulation!\n");
@@ -107,10 +108,6 @@ int main(int argc, char** argv) {
     }
     for(int i = 0;i < NM * M * M + M * Diodes * 2;i++){
     	fscanf(fp,"%f",&A[i]);
-//    	if (i < 2 * M*M)
-//    		A[i] = (i % M) + 1;
-//    	else
-//    		A[i] = 0;
 	}
     printf("Sources:\n\t");
     for(int i = 0;i < M;i++){
@@ -142,35 +139,25 @@ int main(int argc, char** argv) {
     	}
 	}
     printf("\n");
-    //src[0] = 1;
 
-//    for(int i = 0;i < IT * M;i++){
-//    	src[i] = src[i % M] - (i / M);
-//	}
     printf("\n\t");
 
+	// Check software computed static response
     mmult(A,src);
 
     printf("Generating switch control signals...\n");
     fclose(fp);
     for(int i = 0;i < swPeriod;i++){
     	if(i > (swPeriod / 2))
-    		sw[i] = 1;
+    		sw[i] = 1; // Control phase 1
     	else
-    		sw[i] = 2;
+    		sw[i] = 2; // Control phase 2
 	}
 
 
     printf("\nSoftware initialization done!\n\n");
     printf("Run hardware initialization...\n\n");
 
-    // Initialize OpenCL context and load xclbin binary
-    //auto devices = xcl::get_xil_devices();
-
-    // read_binary_file() is a utility API which will load the binaryFile
-    // and will return the pointer to file buffer.
-    //auto fileBuf = xcl::read_binary_file(binaryFile);
-    //cl::Program::Binaries bins{{fileBuf.data(), fileBuf.size()}};
     bool valid_device = false;
     int device_id = 0;
 	std::cout << "\tOpen the device" << device_id << std::endl;
@@ -219,9 +206,6 @@ int main(int argc, char** argv) {
 	bo_src.write(src);
 	bo_src.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
-//	bo_y.write(y.data());
-//	bo_y.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-
 	bo_sw.write(sw);
 	bo_sw.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
@@ -241,12 +225,10 @@ int main(int argc, char** argv) {
 	swc_run.set_arg(0, bo_sw);
 	swc_run.set_arg(1, swPeriod);
 	swc_run.set_arg(2, IT);
-	//swc_run.set_arg(3, do_reload);
 
 	src_run.set_arg(0,bo_src);
 	src_run.set_arg(1,srcPeriod);
 	src_run.set_arg(2,IT);
-	//src_run.set_arg(3, do_reload);
 
 	reload_run.set_arg(0, bo_A);
 
@@ -259,25 +241,19 @@ int main(int argc, char** argv) {
     printf("Hardware initialization done!\n\n");
     printf("Start writing matrixes to hardware...\n");
 
-//    swc_run.start();
-//    src_run.start();
-//    swc_run.wait();
-//    src_run.wait();
-//
-//    do_reload = false;
-//	swc_run.set_arg(3, do_reload);
-//	src_run.set_arg(3, do_reload);
-
     std::cout << "Finished writing!" << std::endl;
     printf("Start simulation...\n");
     for (int tt = 0; tt < 2; tt++){
     	printf("\tRound %d...",tt+1);
+		// Ctrl Phase 1
     	reload_run.start();
     	reload_run.wait();
+		// Ctrl Phase 2
 		swc_run.start();
 		src_run.start();
 		result_back_run.start();
 		observer_run.start();
+		// Ctrl Phase 3
 		controller_run.start();
 		swc_run.wait();
 		controller_run.wait();
@@ -285,10 +261,10 @@ int main(int argc, char** argv) {
 		observer_run.wait();
 		result_back_run.wait();
 		std::cout << "\tFinished one round!" << std::endl;
-
+		// read back
 		bo_y.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 		bo_y.read(y);
-
+		// read back
 		bo_ob.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 		bo_ob.read(ob);
 		printf("\tObserved mean = %.2f; Observed RMS = %.2f.\n",ob[0],ob[1]);
@@ -300,7 +276,7 @@ int main(int argc, char** argv) {
 
     printf("Writing final result to res.txt!\n");
 
-    fp = fopen("/home/alfred/Projects/vitis/spice_to_server/host_src/res.txt","w");
+    fp = fopen("./host_src/res.txt","w");
     if (fp == NULL){
     	printf("Cannot open res.txt! Break!\n");
     	return 0;

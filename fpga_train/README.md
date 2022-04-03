@@ -1,98 +1,91 @@
-# vhls_spice
+# ML scripts
 
-# Introduction
+The machine learining code is based on the ray[rllib]. The ray[rllib] interact with open AI Gym library. Gyn provides custome environment. The custome environment has to have the following interfaces:  
 
-This is a vitis project that creates bit_container.xclbin for hardware acceleration of power electronics time domain simulation. It contains following folders:
-> host_src  
+## reset()
 >
-> * Host sources to run Hardware emulation. Software emulation is not supported because free running kernels are used.
+> reset the environment. return the observation of the environment.
+
+## step(action)
 >
-> kernel_src
+> run the environment according to the action. return the observation, reward, terminated, and an optional information.
+
+This project uses half bridge llc converter as an example. The circuit is shown below:  
+
+<img src="../contents/Circuit.png">
+
+In this demo, the design target is to reach the required output voltage with minimum RMS current on $L_r$. The tunable values in the demo are $L_r$ and $C_r$. Hence, the observation space is $[L_r, C_r, V_{out}^*, V_{out}, I_{rms}]$; The action space is a vector of two flags. The flag has three value $[0, 1, 2]$, '0' means decrease value; '1' means keep the value; '2' means increase the value.  
+Since in circuit, the comertial available value of inductor or capacitor are not linear. Therefore, it is exponetially mapped to 0~1.
+
+# Netlist syntax
+
+The MNA.py creates hardware required matrixes and vectors from netlist. The syntax is similar to spice netlist. Here is the syntax:  
+
+>## V* Node1 Node2 Value
 >
-> * Kernel sources contains c++ kernels and the linker file to connect the kernels.
+> Add a voltage source to the circuit. The 'Node1' is positive and the 'Node2' is negative. The voltage value is 'Value'.
 
-To create the bit_container.xclbin, correct pathes should be set in the Makefile. Here is the example.
+>## I* Node1 Node2 Value
+>
+> Add a current source to the circuit. The current flows from 'Node1' to 'Node2'. Value = 'Value'.
 
-```makefile
-# tool chain path
-XILINX_VITIS ?= /tools/Xilinx/Vitis/2021.2
-XILINX_XRT ?= /opt/xilinx/xrt
-XILINX_VIVADO ?= /tools/Xilinx/Vivado/2021.2
-XILINX_HLS_INCLUDES ?= /tools/Xilinx/Vitis_HLS/2021.2/include
+>## L* Node1 Node2 Value
+>
+> Add an inductor between 'Node1' and 'Node2'.
 
-# Platform path
-VITIS_PLATFORM = xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_DIR = /home/Nextlab_Share/aws-fpga/Vitis/aws_platform/xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_PATH = $(VITIS_PLATFORM_DIR)/xilinx_aws-vu9p-f1_shell-v04261818_201920_2.xpfm
-```
+>## C* Node1 Node2 Value
+>
+> Add a capacitor between 'Node1' and 'Node2'.
 
-The default target is hardware emulation. To run, just type:
+>## R* Node1 Node2 Value
+>
+> Add an inductor between 'Node1' and 'Node2'.
 
-```shell  
-make all -j8
-```
+>## D* Node1 Node2 Value
+>
+> Add a diode between 'Node1' and 'Node2'. The 'Node1' is anode. The voltage drop is 'Value'
 
-To make xclbin that can be run on FPGA, specify the TARGET as hw:  
+>## S* Node1 Node2 Value
+>
+> Add a switch between 'Node1' and 'Node2'. A serial resistance must be specified with 'Value'.
 
-```shell
-make all TARGET=hw -j8
-```
+>## E* Node1 Node2 Node3 Node4 Value
+>
+> Add a voltage control voltage source between 'Node1' and 'Node2'. The control signal is the voltage between 'Node3' and 'Node4', the gain is 'Value'
 
-# Hardware kernels  
+>## H* Node1 Node2 Vname Value
+>
+> Add a current control voltage source. The current flows from 'Node1' to 'Node2'. The control current is the current flowing into the volatge source 'Vname'
 
-## Data type definitions
+>## G* Node1 Node2 Node3 Node4 Value
+>
+> Add a voltage control current souce. The current flows from 'Node1' to 'Node2'. The control signal is the voltage between 'Node3' and 'Node4'.
 
-All global data type definitions are wrote in *typedef.hpp*. The hardware connot process floating point data efficiently, therefore, all data are transfered to a fixed point number when read from the host, and transfered back to corresponding software data type when they are writen back.  
-The data transferred between free running kernels must use AXI stream interface. Xilinx officially supports AXI stream interface with side channels (*tlast*, *tuser*, ...). However, it some times gives some errors when using the AXI stream with side channels. Therefore, the side channels and data are packed in a structure, such as:  
+>## F* Node1 Node2 Vname Value
+>
+> Add a current control current source. The current flows from 'Node1' to 'Node2'. The control current is the current flowing into the volatge source 'Vname'.
 
-``` c
-typedef ap_fixed<W,IW> d_htype;
-typedef ap_uint<1> logic;
-typedef struct __attribute__((packed)){
-    d_htype data;
-    logic last;
-    logic user;
-}dp_htype;
-```  
+>## K* Lname1 Lname2 Value
+>
+> Couple two inductor. The coupled coefficient is 'Value' and two inductors names are 'Lname1' and 'Lname2'. This is used to build the transformer.
 
-The *\_\_attribute\_\_((packed))* is to avoid wasting data width because C may automatically align to 32 bits or 4 bytes[^Structure on interface].
-
-## systolic_array
-The systlic_array kernel contains NM (Number of Matrixes) of matrix multiplication processing units using systolic structure. The first PE is used to calculate the response of directly applied sources while the other PEs are used to calculate the reponse of reactive components such as L, C, and switches. The results are packed into an array and transfered to the adder_tree kernel to sum them up accordingly.  
+## The netlist for the example circuit is  
 
 ```
-               ┌───────────────────────────────────────────────┐                
-               │                                               │                
-               │                                               │                
-               │                ┌───────────────┐              │                
-               │                │               │              │                
-               │       ┌────────▶      PE3      ├─────────┐    │                
-               │       │        │               │         │    │                
-               │       │        └───────────────┘         │    │                
-               │       │                                  │    │                
-               │       │        ┌───────────────┐         │    │                
-               │       │        │               │         │    │                
-               │       ├────────▶      PE2      ├────────┐│    │                
-               │       │        │               │        ││    │                
-               │       │        └───────────────┘        ││    │                
-               │       │                                 ││    │                
-               │       │        ┌───────────────┐        ││    │                
-               │       │        │               │        ││    ├────────────────
-               │       ├────────▶      PE1      ├───────┐│└────┼─────▶          
-               │       │        │               │       │└─────┼─────▶          
-               │       │        └───────────────┘       └──────┼─────▶          
-               │       │                                  ┌────┼─────▶          
-  last_status  │       │        ┌───────────────┐         │    ├────────────────
-  ─────────────┼───────┘        │               │         │    │                
-  source       │                │      PE0      ├─────────┘    │                
-  ─────────────┼────────────────▶               │              │                
-               │                └───────────────┘              │                
-               │                                               │                
-               │                systolic_array                 │                
-               └───────────────────────────────────────────────┘                
+Vs Vs 0 400
+S1 Vs Vin .1
+S2 Vin 0 .1
+Cr Vin Vcl 24n
+Lr Vcl Vpp 70u
+L1 Vpp 0 280u
+L2 Vd1 0 968n
+L3 0 Vd2 968n
+D1 Vd1 Vtout 0
+D2 Vd2 Vtout 0
+Rds Vtout Vout .001
+CL Vout 0 1000u
+RL Vout 0 0.48
+K1 L1 L2 1
+K2 L2 L3 1
+K3 L1 L3 1
 ```
-
-## adder_tree
-The final circuit status is sum up of all valid results from the systolic_array (enabled by superposition). The swithes and diodes have two different status so it is required to pick between two different 
-
-[^Structure on interface]: <https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Structs-on-the-Interface>
