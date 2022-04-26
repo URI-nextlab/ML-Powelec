@@ -7,10 +7,10 @@
 #include "ap_axi_sdata.h"
 #include "ap_shift_reg.h"
 
-const int M = 72;
+const int M = 32;
 const int MD2 = M >> 1;
-const int Diodes = 4;
-const int Switches = 4;
+const int Diodes = 2;
+const int Switches = 2;
 
 typedef ap_fixed<40,18> d_htype;
 typedef ap_fixed<80,18> d_htype_wide;

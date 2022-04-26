@@ -1,6 +1,6 @@
 #include "typedef.hpp"
 
-void MatrixGen(d_stype A[], u32 IT, col_stream& A_up_stream_out, col_stream& A_down_stream_out){
+void Matrix_Gen(d_stype A[], u32 IT, col_stream& A_up_stream_out, col_stream& A_down_stream_out){
 #pragma HLS INTERFACE m_axi port=A offset=slave bundle=M_Gen
 #pragma HLS INTERFACE s_axilite port=IT
 #pragma HLS INTERFACE s_axilite port=return

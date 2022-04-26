@@ -8,9 +8,9 @@ XILINX_VIVADO ?= /tools/Xilinx/Vivado/2021.2
 XILINX_HLS_INCLUDES ?= /tools/Xilinx/Vitis_HLS/2021.2/include
 
 # Platform path
-VITIS_PLATFORM = xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_DIR = /home/Nextlab_Share/aws-fpga/Vitis/aws_platform/xilinx_aws-vu9p-f1_shell-v04261818_201920_2
-VITIS_PLATFORM_PATH = $(VITIS_PLATFORM_DIR)/xilinx_aws-vu9p-f1_shell-v04261818_201920_2.xpfm
+VITIS_PLATFORM = xilinx_aws-vu9p-f1_shell-v04261818_201920_3
+VITIS_PLATFORM_DIR = /home/alfred/Projects/Vitis/aws-fpga/Vitis/aws_platform/xilinx_aws-vu9p-f1_shell-v04261818_201920_3
+VITIS_PLATFORM_PATH = $(VITIS_PLATFORM_DIR)/xilinx_aws-vu9p-f1_shell-v04261818_201920_3.xpfm
 
 # Project Name
 PRJ_NAME ?= spice 
@@ -22,48 +22,11 @@ HOST_SRC += $(HOST_SRC_DIR)/host.cpp
 # Kernel souce files
 KERNEL_SRC_DIR ?= kernel_src
 
-TYPEDEF_HEADER ?= $(KERNEL_SRC_DIR)/typedef.hpp
-
-CONTROLLER_KERNEL_SRC += $(KERNEL_SRC_DIR)/controller.cpp
-CONTROLLER_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-SA_KERNEL_SRC += $(KERNEL_SRC_DIR)/systolic_array.cpp
-SA_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-ADT_KERNEL_SRC += $(KERNEL_SRC_DIR)/adder_tree.cpp
-ADT_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-DOA_KERNEL_SRC += $(KERNEL_SRC_DIR)/diode_updator.cpp
-DOA_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-OBSERVE_KERNEL_SRC += $(KERNEL_SRC_DIR)/observer.cpp
-OBSERVE_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-RELOAD_KERNEL_SRC += $(KERNEL_SRC_DIR)/reload.cpp
-RELOAD_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-SWC_KERNEL_SRC += $(KERNEL_SRC_DIR)/switch_controller.cpp
-SWC_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-SRC_KERNEL_SRC += $(KERNEL_SRC_DIR)/src_generator.cpp
-SRC_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-RES_KERNEL_SRC += $(KERNEL_SRC_DIR)/result_back.cpp
-RES_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-RLC_KERNEL_SRC += $(KERNEL_SRC_DIR)/reload_converter.cpp
-RLC_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-SD_KERNEL_SRC += $(KERNEL_SRC_DIR)/Stream_Divider.cpp
-SD_KERNEL_SRC += $(TYPEDEF_HEADER)
-
-
 # set kernel frequency if necessary
 KERNEL_EXT_CONFIG += --kernel_frequency
 KERNEL_EXT_CONFIG += 250 
 # Bit Container Linker Configuration
 BC_CONFIG += $(KERNEL_SRC_DIR)/linker.cfg
-
 
 VPP_OPTS = --target $(TARGET)
 
@@ -79,17 +42,19 @@ CXXFLAGS += -std=c++1y -DVITIS_PLATFORM=$(VITIS_PLATFORM) -D__USE_XOPEN2K8 -I$(X
 LDFLAGS += -luuid -lxrt_coreutil -lxilinxopencl -lpthread -lrt -lstdc++ -L$(XILINX_XRT)/lib/ -Wl,-rpath-link,$(XILINX_XRT)/lib
 
 BUILD_SUBDIRS += build
-HW_KERNEL_OBJS += build/vitis_hls/controller.xo
-HW_KERNEL_OBJS += build/vitis_hls/reload.xo
+HW_KERNEL_OBJS += build/vitis_hls/Controller.xo
+HW_KERNEL_OBJS += build/vitis_hls/J_reloader.xo
 HW_KERNEL_OBJS += build/vitis_hls/systolic_array.xo
-HW_KERNEL_OBJS += build/vitis_hls/adder_tree.xo
-HW_KERNEL_OBJS += build/vitis_hls/diode_updator.xo
-HW_KERNEL_OBJS += build/vitis_hls/switch_controller.xo
-HW_KERNEL_OBJS += build/vitis_hls/observer.xo
-HW_KERNEL_OBJS += build/vitis_hls/src_generator.xo
+HW_KERNEL_OBJS += build/vitis_hls/Stream_Join.xo
 HW_KERNEL_OBJS += build/vitis_hls/Stream_Divider.xo
-HW_KERNEL_OBJS += build/vitis_hls/reload_converter.xo
+HW_KERNEL_OBJS += build/vitis_hls/Diode_M_Gen.xo
+HW_KERNEL_OBJS += build/vitis_hls/Switch_Controller.xo
+HW_KERNEL_OBJS += build/vitis_hls/Switch_M_Gen.xo
+HW_KERNEL_OBJS += build/vitis_hls/Source_Gen.xo
+HW_KERNEL_OBJS += build/vitis_hls/observer.xo
 HW_KERNEL_OBJS += build/vitis_hls/result_back.xo
+HW_KERNEL_OBJS += build/vitis_hls/Matrix_Gen.xo
+HW_KERNEL_OBJS += build/vitis_hls/Diode_Controller.xo
 
 BINARY_CONTAINERS += build/vivado/bit_container.xclbin
 
@@ -113,6 +78,8 @@ KERNEL_EXT_CONFIG += --report_dir
 KERNEL_EXT_CONFIG += $(REPORT_DIR)
 # KERNEL_EXT_CONFIG += -s
 KERNEL_EXT_CONFIG += -g
+
+KERNEL_O_DIR ?= build/vitis_hls
 
 LINK_EXT_CONFIG += --temp_dir
 LINK_EXT_CONFIG += build/vivado
@@ -155,85 +122,15 @@ incremental: all
 
 nothing:
 
-# build kernels first
-build/vitis_hls/controller.xo: $(CONTROLLER_KERNEL_SRC)
+# build kernels first, automatic build all kernels
+$(KERNEL_O_DIR)/%.xo: $(KERNEL_SRC_DIR)/%.cpp
 	-@mkdir -p $(@D)
 	-@mkdir -p $(LOG_DIR)
 	-@mkdir -p $(REPORT_DIR)
 	-@$(RM) $@
 	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
 
-build/vitis_hls/systolic_array.xo: $(SA_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-
-build/vitis_hls/adder_tree.xo: $(ADT_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/diode_updator.xo: $(DOA_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/observer.xo: $(OBSERVE_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/src_generator.xo: $(SRC_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/switch_controller.xo: $(SWC_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/reload.xo: $(RELOAD_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/result_back.xo: $(RES_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/reload_converter.xo: $(RLC_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
-build/vitis_hls/Stream_Divider.xo: $(SD_KERNEL_SRC)
-	-@mkdir -p $(@D)
-	-@mkdir -p $(LOG_DIR)
-	-@mkdir -p $(REPORT_DIR)
-	-@$(RM) $@
-	faketime 'last year' $(VPP) $(VPP_OPTS) --compile -I"$(<D)" --kernel $(basename $(@F)) --advanced.misc solution_name=$(basename $(@F)) $(KERNEL_EXT_CONFIG) -o"$@" "$<"
-
+	
 # link project secondly
 $(BINARY_CONTAINERS): $(HW_KERNEL_OBJS) $(BC_CONFIG)
 	-@mkdir -p $(@D)

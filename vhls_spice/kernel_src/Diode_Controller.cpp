@@ -16,7 +16,6 @@ void Diode_Controller(dp_stream& J_stream, dp_stream& x, Ctrl_Stream& S_out, Ctr
 	if (!J_stream.empty()){	// J has higher priority
 		dp J_temp;
 		J_stream >> J_temp;
-//		printf("Get %f\n",(float)J_temp.data);
 		if (J_temp.data > 0.5){
 			J_local[J_row_counter][J_col_counter] = 1;
 		}
@@ -36,13 +35,6 @@ void Diode_Controller(dp_stream& J_stream, dp_stream& x, Ctrl_Stream& S_out, Ctr
 			}
 			else{
 				J_row_counter = 0;
-//				for (int i = 0; i < Diodes * 2;i++){
-//					printf("Row %d:", i);
-//					for (int j = 0; j < M;j++){
-//						printf ("%d\t",(int)J_local[i][j]);
-//					}
-//					printf("\n");
-//				}
 			}
 		}
 	}
@@ -51,7 +43,6 @@ void Diode_Controller(dp_stream& J_stream, dp_stream& x, Ctrl_Stream& S_out, Ctr
 		bool data_valid;
 		bool x_valid = x.read_nb(x_temp);
 		if (x_valid){
-//			printf("Get x!\n");
 			for (s16 i = 0; i < Diodes * 2; i++){
 #pragma HLS unroll
 				if(x_temp.user){
@@ -100,9 +91,6 @@ void Diode_Controller(dp_stream& J_stream, dp_stream& x, Ctrl_Stream& S_out, Ctr
 			else{
 				x_counter = 0;
 			}
-//			for (int i = 0; i < Diodes * 2; i++){
-//				printf("flag_val %d = %f\n",i, (float)flag_val[i]);
-//			}
 		}
 	}
 

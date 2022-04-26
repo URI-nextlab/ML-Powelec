@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
     std::string binaryFile = argv[1];
 
-	const int IT = 300;
+	const int IT = 3000;
     const int swPeriod = 100;
     const int srcPeriod = 1;
 
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
     printf("[Process]\tFinish allocating vectors!\n");
 	printf("[Process]\tStart loading matrixes and vectors...\n");
-    fp = fopen("/home/alfred/Projects/Vitis/spice/spice/src/to_aws.txt","r");
+    fp = fopen("./host_src/to_aws.txt","r");
     if (fp == NULL){
         printf("[Error]\tFaild to load txt file!\n");
         printf("[Error]\tBreak simulation!\n");
@@ -173,10 +173,10 @@ int main(int argc, char** argv) {
 	printf("[Process]\tConnect to %s kernel...\n", "Controller");
 	auto Controller = xrt::kernel(device, uuid, "Controller");
 
-	printf("[Process]\tConnect to %s kernel...\n", "MatrixGen:{M_Gen_src}");
-	auto M_Gen_src = xrt::kernel(device, uuid, "MatrixGen:{M_Gen_src}");
-	printf("[Process]\tConnect to %s kernel...\n", "MatrixGen:{M_Gen_react}");
-	auto M_Gen_react = xrt::kernel(device, uuid, "MatrixGen:{M_Gen_react}");
+	printf("[Process]\tConnect to %s kernel...\n", "Matrix_Gen:{M_Gen_src}");
+	auto M_Gen_src = xrt::kernel(device, uuid, "Matrix_Gen:{M_Gen_src}");
+	printf("[Process]\tConnect to %s kernel...\n", "Matrix_Gen:{M_Gen_react}");
+	auto M_Gen_react = xrt::kernel(device, uuid, "Matrix_Gen:{M_Gen_react}");
 
 
 	printf("[Process]\tConnect to %s kernel...\n", "Switch_M_Gen");
@@ -312,8 +312,8 @@ int main(int argc, char** argv) {
 
     std::cout << "[Process]\tFinished writing!" << std::endl;
     printf("[Process]\tStart simulation...\n");
-    for (int tt = 0; tt < 5; tt++){
-    	printf("\tRound %d...",tt+1);
+    for (int tt = 0; tt < 2; tt++){
+    	printf("[Process]\tRound %d...\t",tt+1);
     	reload_run.start();
     	reload_run.wait();
     	observer_run.start();
@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
 
     printf("[Process]\tWriting final result to res.txt!\n");
 
-    fp = fopen("/home/alfred/Projects/Vitis/spice/spice/src/res.txt","w");
+    fp = fopen("./host_src/res.txt","w");
     if (fp == NULL){
     	printf("[Error]\tCannot open res.txt! Break!\n");
     	return 0;

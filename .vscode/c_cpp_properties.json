@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/tools/Xilinx/Vitis_HLS/2021.2/include/**"
+                "/tools/Xilinx/Vitis_HLS/2021.2/include/**",
+                "/opt/xilinx/xrt/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang-10",
