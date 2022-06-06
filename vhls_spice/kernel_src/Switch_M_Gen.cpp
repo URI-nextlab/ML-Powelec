@@ -35,7 +35,7 @@ S_M_Gen_col_loop:
 S_M_Gen_row_loop:
 			for (int row = 0; row < M; row++){
 #pragma HLS unroll
-				d_htype_wide temp = 0;
+				d_htype temp = 0;
 S_M_Gen_S_loop:
 				for (int s = 0; s < Switches;s++){
 #pragma HLS unroll

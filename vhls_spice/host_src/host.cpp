@@ -26,7 +26,7 @@
 #include <xrt/xrt_bo.h>
 #include <stdio.h>
 
-#define M 32
+#define M 48
 #define Diodes 2
 #define Switches 2
 
@@ -312,7 +312,7 @@ int main(int argc, char** argv) {
 
     std::cout << "[Process]\tFinished writing!" << std::endl;
     printf("[Process]\tStart simulation...\n");
-    for (int tt = 0; tt < 2; tt++){
+    for (int tt = 0; tt < 1; tt++){
     	printf("[Process]\tRound %d...\t",tt+1);
     	reload_run.start();
     	reload_run.wait();

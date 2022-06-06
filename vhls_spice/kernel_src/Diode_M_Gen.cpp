@@ -42,7 +42,7 @@ D_M_Gen_col_loop:
 D_M_Gen_row_loop:
 			for (int row = 0; row < M; row++){
 #pragma HLS unroll
-				d_htype_wide temp = 0;
+				d_htype temp = 0;
 D_M_Gen_D_loop:
 				for (int d = 0; d < Diodes;d++){
 #pragma HLS unroll

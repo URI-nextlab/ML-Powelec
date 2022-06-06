@@ -1,5 +1,18 @@
 #include "typedef.hpp"
-
+/*
+Controller: manage the iteration loop.
+        ┌─────────────┐
+        │        ┌──▶s_out1─▶
+        │    ┌───┘    │
+ ──s_in─▶ ───●──────▶s_out2─▶
+        │    └───┐    │
+        │        └──▶s_out3─▶
+        └─────────────┘
+Input:
+	x0:	Stream input
+Output:
+	s_out*:	Stream output
+*/
 void Controller(d_stype x0[], int IT, dp_stream& x_src_out, dp_stream& x_diode_j, dp_stream& x_react, dp_stream& x_diode, dp_stream&x_switch, dp_stream& x_back,  dp_stream& x_src_in,dp_stream& result_stream){
 #pragma HLS INTERFACE m_axi port = x0 offset = slave bundle = gmem1
 #pragma HLS INTERFACE s_axilite port = x0
