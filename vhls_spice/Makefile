@@ -28,14 +28,14 @@ HW_KERNEL_OBJS += $(KERNEL_O_DIR)/J_reloader.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/systolic_array.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Stream_Join.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Stream_Divider.xo
-HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Diode_M_Gen.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Switch_Controller.xo
-HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Switch_M_Gen.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Source_Gen.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/observer.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/result_back.xo
-HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Matrix_Gen.xo
 HW_KERNEL_OBJS += $(KERNEL_O_DIR)/Diode_Controller.xo
+HW_KERNEL_OBJS += $(KERNEL_O_DIR)/x_pickup.xo
+HW_KERNEL_OBJS += $(KERNEL_O_DIR)/systolic_array_switch.xo
+HW_KERNEL_OBJS += $(KERNEL_O_DIR)/systolic_array_diode.xo
 
 # set kernel frequency if necessary
 KERNEL_EXT_CONFIG += --kernel_frequency
@@ -83,7 +83,7 @@ KERNEL_EXT_CONFIG += $(LOG_DIR)
 KERNEL_EXT_CONFIG += --report_dir
 KERNEL_EXT_CONFIG += $(REPORT_DIR)
 KERNEL_EXT_CONFIG += -s
-KERNEL_EXT_CONFIG += -g
+#KERNEL_EXT_CONFIG += -g
 
 
 LINK_EXT_CONFIG += --temp_dir

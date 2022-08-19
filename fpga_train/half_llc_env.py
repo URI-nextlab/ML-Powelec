@@ -2,40 +2,16 @@ from FPGA_Spice_Accelerator import FPGA_Spice_Accelerator
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
+
 class half_llc_env(gym.Env):
     metadata = {'render.modes' : ['human']}
     def __init__(self,config):
         self.training_step = 0
-        self.ostar = 12
-        self.best_so_far = {}
-        self.best_so_far[str(11)] = 0.1
-        self.best_so_far[str(12)] = 0.1
-        self.best_so_far[str(13)] = 0.1
-        self.best_radias = {}
-        self.best_radias[str(11)] = 0.95
-        self.best_radias[str(12)] = 0.95
-        self.best_radias[str(13)] = 0.95
+        self.ostar = 300
         self.vname = ['Lr','Cr']
         self.vrange_low = [1e-6,1e-9]
         self.vrange_high = [110e-6,110e-9]
-        self.netlist = [
-            'Vs Vs 0 400',
-            'S1 Vs Vin .1',
-            'S2 Vin 0 .1',
-            'Cr Vin Vcl 24n',
-            'Lr Vcl Vpp 70u',
-            'L1 Vpp 0 280u',
-            'L2 Vd1 0 968n',
-            'L3 0 Vd2 968n',
-            'D1 Vd1 Vtout 0',
-            'D2 Vd2 Vtout 0',
-            'Rds Vtout Vout .001',
-            'CL Vout 0 1000u',
-            'RL Vout 0 0.48',
-            'K1 L1 L2 1',
-            'K2 L2 L3 1',
-            'K3 L1 L3 1'
-        ]
+        self.netlist = config.ge
         self.simulator = FPGA_Spice_Accelerator('spice.awsxclbin')
         self.simulator.set_simulator(netlist=self.netlist,timeSteps=10000,h=1e-7,swPeriod=100,srcPeriod=1,M=48,S=2,RMS_ID=20,MEAN_ID=7)
         self.action_meaning = [-1,0,1]

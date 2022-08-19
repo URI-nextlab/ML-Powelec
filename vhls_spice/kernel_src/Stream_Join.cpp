@@ -2,7 +2,7 @@
 
 void Stream_Join(dp_stream& x, wdp_stream& x_src, wdp_stream& x_react, wdp_stream& x_switch, wdp_stream& x_diode){
 #pragma HLS interface ap_ctrl_none port=return
-#pragma HLS pipeline II=1
+#pragma HLS pipeline II=1 style=frp
 	wdp x_src_temp ,x_react_temp, x_switch_temp, x_diode_temp;
 	dp x_temp;
 

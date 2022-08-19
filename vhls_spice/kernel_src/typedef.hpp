@@ -7,14 +7,14 @@
 #include "ap_axi_sdata.h"
 #include "ap_shift_reg.h"
 
-const int M = 48;
+const int M = 30;
 const int MD2 = M >> 1;
-const int Diodes = 6;
-const int Switches = 6;
+const int Diodes = 2;
+const int Switches = 2;
 
-typedef ap_fixed<40,14> d_htype;
-typedef ap_fixed<80,14> d_htype_wide;
-typedef ap_fixed<80,28> d_htype_acc;
+typedef ap_fixed<32,14,AP_TRN_ZERO> d_htype;
+typedef ap_fixed<64,28,AP_TRN_ZERO> d_htype_wide;
+typedef ap_fixed<64,28,AP_TRN_ZERO> d_htype_acc;
 typedef float d_stype;
 typedef ap_uint<32> u32;
 typedef ap_uint<8> u8;
@@ -36,6 +36,10 @@ typedef hls::stream<wdp> wdp_stream;
 typedef struct {
 	d_htype data[MD2];
 }Col;
+typedef struct {
+	d_htype data[4 * Diodes];
+}x_picked;
+typedef hls::stream<x_picked> x_picked_stream;
 typedef hls::stream<Col> col_stream;
 
 typedef struct {

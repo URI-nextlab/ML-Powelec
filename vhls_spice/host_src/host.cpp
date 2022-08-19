@@ -26,7 +26,7 @@
 #include <xrt/xrt_bo.h>
 #include <stdio.h>
 
-#define M 48
+#define M 30
 #define Diodes 2
 #define Switches 2
 
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
     std::string binaryFile = argv[1];
 
-	const int IT = 3000;
+	const int IT = 300;
     const int swPeriod = 100;
     const int srcPeriod = 1;
 
@@ -71,10 +71,12 @@ int main(int argc, char** argv) {
     printf("[Process]\tStart allocating vectors...\n");
     float A_src[M * M];
     float A_react[M * M];
-    float A_Switches[Switches * 2 * M * M];
-    float A_Diodes[Diodes * 2 * M * M];
+    float A_Switches[4 * Switches * M];
+    float A_Diodes[4 * Diodes * M];
     float J[Diodes * 2 * M];
     float y[IT * M];
+	unsigned char idx_ref_sw[M];
+	unsigned char idx_ref_diode[M];
     float ob[2];
     unsigned short sw[swPeriod];
 
@@ -100,12 +102,12 @@ int main(int argc, char** argv) {
 	}
 
 	printf("[Process]\tReading A_Switches...\n");
-    for(int i = 0;i < Switches * 2 * M * M;i++){
+    for(int i = 0;i < 4 * M * Switches;i++){
     	fscanf(fp,"%f",&A_Switches[i]);
 	}
 
 	printf("[Process]\tReading A_Diodes...\n");
-    for(int i = 0;i < Diodes * 2 * M * M;i++){
+    for(int i = 0;i  < 4 * M * Diodes;i++){
     	fscanf(fp,"%f",&A_Diodes[i]);
 	}
 
@@ -144,6 +146,24 @@ int main(int argc, char** argv) {
 	}
 	printf("\n");
 
+	printf("[Process]\tReading idx_ref_SW:\n\t");
+    printf("[Info.]\tInitial status:\n\t");
+    for(int i = 0;i < M;i++){
+		float temp = 0;
+		fscanf(fp,"%f",&temp);
+		idx_ref_sw[i] = (unsigned char)temp;
+	}
+	printf("\n");
+
+
+	printf("[Process]\tReading idx_ref_DIODE:\n\t");
+    printf("[Info.]\tInitial status:\n\t");
+    for(int i = 0;i < M;i++){
+		float temp = 0;
+		fscanf(fp,"%f",&temp);
+		idx_ref_diode[i] = (unsigned char)temp;
+	}
+	printf("\n");
 
 	printf("[Process]\tFinished loading matrixes and vectors!\n");
 
@@ -173,18 +193,17 @@ int main(int argc, char** argv) {
 	printf("[Process]\tConnect to %s kernel...\n", "Controller");
 	auto Controller = xrt::kernel(device, uuid, "Controller");
 
-	printf("[Process]\tConnect to %s kernel...\n", "Matrix_Gen:{M_Gen_src}");
-	auto M_Gen_src = xrt::kernel(device, uuid, "Matrix_Gen:{M_Gen_src}");
-	printf("[Process]\tConnect to %s kernel...\n", "Matrix_Gen:{M_Gen_react}");
-	auto M_Gen_react = xrt::kernel(device, uuid, "Matrix_Gen:{M_Gen_react}");
+	printf("[Process]\tConnect to %s kernel...\n", "x_pickup:{x_pickup_sw}");
+	auto x_pickup_sw = xrt::kernel(device, uuid, "x_pickup:{x_pickup_sw}");
+	printf("[Process]\tConnect to %s kernel...\n", "x_pickup:{x_pickup_di}");
+	auto x_pickup_di = xrt::kernel(device, uuid, "x_pickup:{x_pickup_di}");
 
+	printf("[Process]\tConnect to %s kernel...\n", "systolic_array_switch:{SA_switch}");
+	auto SA_switch = xrt::kernel(device, uuid, "systolic_array_switch:{SA_switch}");
 
-	printf("[Process]\tConnect to %s kernel...\n", "Switch_M_Gen");
-	auto Switch_M_Gen = xrt::kernel(device, uuid, "Switch_M_Gen");
+	printf("[Process]\tConnect to %s kernel...\n", "systolic_array_diode:{SA_diode}");
+	auto SA_diode = xrt::kernel(device, uuid, "systolic_array_diode:{SA_diode}");
 
-
-	printf("[Process]\tConnect to %s kernel...\n", "Diode_M_Gen");
-	auto Diode_M_Gen = xrt::kernel(device, uuid, "Diode_M_Gen");
 
 	printf("[Process]\tConnect to %s kernel...\n", "Switch_Controller");
 	auto Switch_Controller = xrt::kernel(device, uuid, "Switch_Controller");
@@ -206,16 +225,23 @@ int main(int argc, char** argv) {
 
 	std::cout << "[Process]\tAllocate Buffer in Global Memory...\n";
 	printf("[Process]\tAllocate %s buffer...\n","A_src");
-	auto bo_A_src = xrt::bo(device, sizeof(A_src), M_Gen_src.group_id(0));
+	auto bo_A_src = xrt::bo(device, sizeof(A_src), J_reloader.group_id(0));
 	printf("[Process]\tAllocate %s buffer...\n","A_react");
-	auto bo_A_react = xrt::bo(device, sizeof(A_react), M_Gen_react.group_id(0));
-	printf("[Process]\tAllocate %s buffer...\n","A_Switches");
-	auto bo_A_Switches = xrt::bo(device, sizeof(A_Switches), Switch_M_Gen.group_id(0));
-	printf("[Process]\tAllocate %s buffer...\n","A_Diodes");
-	auto bo_A_Diodes = xrt::bo(device, sizeof(A_Diodes), Diode_M_Gen.group_id(0));
-
+	auto bo_A_react = xrt::bo(device, sizeof(A_react), J_reloader.group_id(1));
 	printf("[Process]\tAllocate %s buffer...\n","J");
-	auto bo_J = xrt::bo(device, sizeof(J), J_reloader.group_id(0));
+	auto bo_J = xrt::bo(device, sizeof(J), J_reloader.group_id(2));
+	printf("[Process]\tAllocate %s buffer...\n","A_Switches");
+	auto bo_A_Switches = xrt::bo(device, sizeof(A_Switches), SA_switch.group_id(0));
+	printf("[Process]\tAllocate %s buffer...\n","A_Diodes");
+	auto bo_A_Diodes = xrt::bo(device, sizeof(A_Diodes), SA_diode.group_id(0));
+
+
+	printf("[Process]\tAllocate %s buffer...\n","idx_ref_sw");
+	auto bo_idx_sw = xrt::bo(device, sizeof(idx_ref_sw), x_pickup_sw.group_id(0));
+
+	printf("[Process]\tAllocate %s buffer...\n","idx_ref_diode");
+	auto bo_idx_diode = xrt::bo(device, sizeof(idx_ref_diode), x_pickup_di.group_id(0));
+
 
 	printf("[Process]\tAllocate %s buffer...\n","x0");
 	auto bo_x0 = xrt::bo(device, sizeof(x0), Controller.group_id(0));
@@ -261,15 +287,20 @@ int main(int argc, char** argv) {
 	bo_sw.write(sw);
 	bo_sw.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
+	bo_idx_diode.write(idx_ref_diode);
+	bo_idx_diode.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+	bo_idx_sw.write(idx_ref_sw);
+	bo_idx_sw.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
 	auto controller_run = xrt::run(Controller);
 	auto result_back_run = xrt::run(result_back);
 	auto swc_run = xrt::run(Switch_Controller);
 	auto src_run = xrt::run(Source_Gen);
 	auto reload_run = xrt::run(J_reloader);
-	auto dmg_run = xrt::run(Diode_M_Gen);
-	auto smg_run = xrt::run(Switch_M_Gen);
-	auto asrc_run = xrt::run(M_Gen_src);
-	auto areact_run = xrt::run(M_Gen_react);
+	auto x_pickup_sw_run = xrt::run(x_pickup_sw);
+	auto x_pickup_di_run = xrt::run(x_pickup_di);
+	auto sa_sw_run = xrt::run(SA_switch);
+	auto sa_di_run = xrt::run(SA_diode);
 	auto observer_run = xrt::run(observer);
 
 	result_back_run.set_arg(0, bo_y);
@@ -286,19 +317,23 @@ int main(int argc, char** argv) {
 	src_run.set_arg(1,srcPeriod);
 	src_run.set_arg(2,IT);
 
+	reload_run.set_arg(0, bo_A_src);
+	reload_run.set_arg(0, bo_A_react);
 	reload_run.set_arg(0, bo_J);
 
-	dmg_run.set_arg(0, bo_A_Diodes);
-	dmg_run.set_arg(1, IT);
+	x_pickup_sw_run.set_arg(0, bo_idx_sw);
+	x_pickup_sw_run.set_arg(1, IT);
 
-	smg_run.set_arg(0, bo_A_Switches);
-	smg_run.set_arg(1, IT);
+	x_pickup_di_run.set_arg(0, bo_idx_diode);
+	x_pickup_di_run.set_arg(1, IT);
 
-	asrc_run.set_arg(0, bo_A_src);
-	asrc_run.set_arg(1, IT);
+	sa_sw_run.set_arg(0, bo_A_Switches);
+	sa_sw_run.set_arg(1, IT);
 
-	areact_run.set_arg(0, bo_A_react);
-	areact_run.set_arg(1, IT);
+
+	sa_di_run.set_arg(0, bo_A_Diodes);
+	sa_di_run.set_arg(1, IT);
+
 
 	observer_run.set_arg(0, bo_ob);
 	observer_run.set_arg(1, rms_id);
@@ -317,22 +352,22 @@ int main(int argc, char** argv) {
     	reload_run.start();
     	reload_run.wait();
     	observer_run.start();
-    	dmg_run.start();
-    	smg_run.start();
-    	asrc_run.start();
-    	areact_run.start();
+    	sa_sw_run.start();
+    	sa_di_run.start();
+    	x_pickup_sw_run.start();
+    	x_pickup_di_run.start();
     	swc_run.start();
     	src_run.start();
 		result_back_run.start();
 		controller_run.start();
 		// wait
-		dmg_run.wait();
+		sa_sw_run.wait();
 		std::cout << "[Process]\t\tdmg finished!" << std::endl;
-		smg_run.wait();
+		sa_di_run.wait();
 		std::cout << "[Process]\t\tsmg finished!" << std::endl;
-		asrc_run.wait();
+		x_pickup_sw_run.wait();
 		std::cout << "[Process]\t\tasrc finished!" << std::endl;
-		areact_run.wait();
+		x_pickup_di_run.wait();
 		std::cout << "[Process]\t\tareact finished!" << std::endl;
 		swc_run.wait();
 		std::cout << "[Process]\t\tswc finished!" << std::endl;
