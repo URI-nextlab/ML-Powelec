@@ -1,50 +1,52 @@
 #ifndef __TYPEDEF_HPP__
 #define __TYPEDEF_HPP__
 
+
 #include "hls_stream.h"
 #include "ap_fixed.h"
 #include "ap_axi_sdata.h"
 #include "ap_shift_reg.h"
 
-#define W 32		// Width of the fixed point number
-#define IW 12		// Width of interger in the fixed point number
+const int M = 64;
+const int MD2 = M >> 1;
+const int Diodes = 4;
+const int Switches = 4;
 
-#define M 48		// Supported dimension of matrix
-#define NM 10		// Number of Matrixes
+typedef ap_fixed<32,14,AP_TRN_ZERO> d_htype;
+typedef ap_fixed<64,28,AP_TRN_ZERO> d_htype_wide;
+typedef ap_fixed<64,28,AP_TRN_ZERO> d_htype_acc;
+typedef float d_stype;
+typedef ap_uint<32> u32;
+typedef ap_uint<8> u8;
+typedef ap_uint<16> u16_bitwise;
+typedef ap_uint<M> shift_bits;
+typedef ap_uint<1> bit;
+typedef ap_int<16> s16;
 
-const int S = (NM - 2) / 2;			// Number of total switches
-const int SWs = (NM - 2) / 4;		// Number of switches
-const int Diodes = (NM - 2) / 4;	// Number of diodes
+typedef hls::stream<d_htype> d_stream;
+//typedef struct {
+//	d_htype data;
+//	bit last;
+//	bit user;
+//}dp;
+typedef hls::axis<d_htype,1,0,0> dp;
+typedef hls::axis<d_htype_wide,1,0,0> wdp;
+typedef hls::stream<dp> dp_stream;
+typedef hls::stream<wdp> wdp_stream;
+typedef struct {
+	d_htype data[MD2];
+}Col;
+typedef struct {
+	d_htype data[4 * Diodes];
+}x_picked;
+typedef hls::stream<x_picked> x_picked_stream;
+typedef hls::stream<Col> col_stream;
 
-typedef float d_stype;				// Software (host) data type
-typedef ap_fixed<W,IW> d_htype;		// Hardware (fpga) data type for computing
-typedef ap_uint<8> u8_bitwise;		// Switch signals, allow bitwise access
-typedef ap_uint<1> logic;			// Logic 1 bit
-
-// d_htype data package
-typedef struct __attribute__((packed)){
-	d_htype data;
-	logic last;
-	logic user;
-}dp_htype;
-
-// two d_htype data package, for streaming source and last circuit status
-typedef struct __attribute__((packed)){
-	d_htype data[2];
-	logic last;
-	logic user;
-}dp_src;
-
-// d_htype array data package, for streaming the result of systolic arrays to tree adder.
-typedef struct __attribute__((packed)){
-	d_htype data[NM];
-	logic last;
-	logic user;
-}dp_dharray;
-
-// Definition of logical values
-const logic True = (ap_uint<1>)1;
-const logic False = (ap_uint<1>)0;
-
+typedef struct {
+	d_htype data[M + 1];
+}SA_array;
+typedef hls::axis<SA_array,1,0,0> SA_dp;
+typedef hls::stream<SA_dp> SA_stream;
+typedef hls::stream<u16_bitwise> Ctrl_Stream;
 
 #endif
